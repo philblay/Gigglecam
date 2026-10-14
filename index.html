@@ -5,7 +5,7 @@
 </style></head><body><main class="app"><header class="top"><div class="brand">🤪 GiggleCam</div><div class="tag">✨ Just for fun</div></header><section class="camera"><video id="video" autoplay muted playsinline></video><canvas id="canvas" width="720" height="960"></canvas><div class="placeholder" id="placeholder"><div class="face">🤳</div><strong style="font-size:25px">Ready to giggle?</strong><button class="start" id="start">📸 Start Camera</button><div class="hint" id="status">Allow camera access when your iPhone asks.</div></div><div id="toast" class="toast"></div></section><div class="bottom"><div class="label">🎭 Choose a funny face</div><div class="scroller" id="filters"></div><div class="label">🌈 Pick a scene</div><div class="scroller" id="scenes"></div><div class="actions"><button id="reset" class="minor">↺ Reset</button><button id="photo" class="shutter" aria-label="Take photo">📷</button><button id="switch" class="minor" aria-label="Switch camera">🔄 Flip</button></div><p class="note">🔒 Photos stay on your phone. Camera frames aren't uploaded.</p></div></main>
 <script type="module">
 // Face tracking is loaded after the camera starts, so a CDN error never blocks the camera button.
-const F=[['none','🙂','None'],['bunny','🐰','Bunny'],['cat','🐱','Kitty'],['dog','🐶','Puppy'],['clown','🤡','Clown'],['glasses','😎','Cool'],['pirate','🏴‍☠️','Pirate'],['crown','👑','Royal'],['alien','👽','Alien'],['hearts','🥰','Love'],['moustache','🥸','Moustache']];
+const F=[['none','🙂','None'],['bunny','🐰','Bunny'],['cat','🐱','Kitty'],['dog','🐶','Puppy'],['fox','🦊','Fox'],['panda','🐼','Panda'],['unicorn','🦄','Unicorn'],['princess','👑','Princess'],['pirate','🏴‍☠️','Pirate'],['superhero','🦸','Hero'],['robot','🤖','Robot'],['clown','🤡','Clown'],['glasses','😎','Shades'],['heart','💕','Hearts'],['moustache','🥸','Moustache'],['alien','👽','Alien']];
 const S=[['none','📷','Normal'],['party','🎉','Party'],['space','🚀','Space'],['ocean','🐠','Ocean'],['jungle','🌴','Jungle'],['rainbow','🌈','Rainbow']];
 const video=document.getElementById('video'),canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),placeholder=document.getElementById('placeholder'),status=document.getElementById('status');let filter='bunny',scene='none',landmarker,stream,face=null,front=true,lastDetect=0,toastTimer,renderRunning=false;
 function makeButtons(id,items,selected,fn){document.getElementById(id).innerHTML='';for(const [key,emoji,name] of items){const b=document.createElement('button');b.className='choice'+(key===selected?' active':'');b.innerHTML=`<span class="emoji">${emoji}</span><span>${name}</span>`;b.onclick=()=>fn(key);document.getElementById(id).append(b)}}
@@ -15,47 +15,74 @@ async function cameraStart(){try{status.textContent='Opening camera…';if(!wind
 document.getElementById('start').onclick=cameraStart;document.getElementById('switch').onclick=()=>{front=!front;face=null;cameraStart()};document.getElementById('reset').onclick=()=>{filter='none';scene='none';renderChoices()};
 const W=720,H=960;let layout={scale:1,dx:0,dy:0};function pos(p){const x=layout.dx+p.x*video.videoWidth*layout.scale;const y=layout.dy+p.y*video.videoHeight*layout.scale;return {x:front?W-x:x,y}}function ellipse(x,y,rx,ry,c){ctx.beginPath();ctx.ellipse(x,y,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2);ctx.fillStyle=c;ctx.fill()}function stroke(x,y,rx,ry,c,w=5){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.strokeStyle=c;ctx.lineWidth=w;ctx.stroke()}function line(a,b,c,w=5){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=c;ctx.lineWidth=w;ctx.lineCap='round';ctx.stroke()}function emoji(char,x,y,size,rot=0){ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`${size}px Apple Color Emoji,Segoe UI Emoji,sans-serif`;ctx.fillText(char,0,0);ctx.restore()}function poly(points,color){ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);points.slice(1).forEach(p=>ctx.lineTo(...p));ctx.closePath();ctx.fillStyle=color;ctx.fill()}
 function drawScene(t){if(scene==='none')return;ctx.save();if(scene==='party'){for(let i=0;i<22;i++){const x=(i*171+50)%W,y=(i*241+30)%H;ctx.fillStyle=['#ffe64a','#fb5eea','#54f4ff'][i%3];ctx.save();ctx.translate(x,y);ctx.rotate(i);ctx.fillRect(-4,-10,8,20);ctx.restore()}emoji('🎈',86,180,85);emoji('🎉',640,140,78);emoji('🎁',625,845,94)}if(scene==='space'){ctx.fillStyle='#241b6b55';ctx.fillRect(0,0,W,H);for(let i=0;i<40;i++){ellipse((i*163+26)%W,(i*239+91)%H,2+(i%3),2+(i%3),'#fff9c4')}emoji('🪐',105,170,125);emoji('🚀',630,755,100);emoji('🌙',590,135,95)}if(scene==='ocean'){ctx.fillStyle='#12aef02b';ctx.fillRect(0,0,W,H);for(let i=0;i<21;i++)stroke((i*157+40)%W,(i*217+66)%H,9+i%4*7,9+i%4*7,'#b9f5ff99',3);emoji('🐠',100,220,94);emoji('🐙',620,725,112);emoji('🪸',95,835,100)}if(scene==='jungle'){emoji('🌿',60,110,135);emoji('🌴',660,130,150);emoji('🦋',100,380,82);emoji('🐒',620,790,112);emoji('🌺',140,845,105)}if(scene==='rainbow'){const colors=['#ff455a','#ffa52c','#fff35b','#4def8f','#59bbff','#a778ff'];colors.forEach((c,i)=>{ctx.strokeStyle=c+'99';ctx.lineWidth=18;ctx.beginPath();ctx.arc(W/2,430,490-i*22,Math.PI*1.1,Math.PI*1.9);ctx.stroke()});emoji('☁️',90,350,110);emoji('⭐',635,330,95);emoji('✨',580,770,100)}ctx.restore()}
+// Vector artwork: drawn in face-relative coordinates, always upright on screen.
+// Camera mirroring happens once in pos(); no mirrored text or +/- PI rotation.
 function drawFace(){
-  if(!face||!front||filter==='none')return;
-  const p=i=>pos(face[i]);
-  // Landmarks are transformed into the exact same mirrored, cover-cropped
-  // coordinate space as the camera pixels, before drawing overlays.
-  const eyeA=p(33),eyeB=p(263),nose=p(1),mouth=p(13),chin=p(152),forehead=p(10);
-  const eyeL=eyeA.x<eyeB.x?eyeA:eyeB;
-  const eyeR=eyeA.x<eyeB.x?eyeB:eyeA;
-  const eyeSpan=Math.hypot(eyeR.x-eyeL.x,eyeR.y-eyeL.y);
-  if(!Number.isFinite(eyeSpan)||eyeSpan<15)return;
-  const fw=eyeSpan*2.12;
-  const h=Math.hypot(chin.x-forehead.x,chin.y-forehead.y);
-  // Always measure from screen-left to screen-right; otherwise mirrored
-  // selfie landmarks create +/- PI rotations (upside-down stickers).
-  const tilt=Math.atan2(eyeR.y-eyeL.y,eyeR.x-eyeL.x);
-  const cx=forehead.x;
-  const top=forehead.y;
-  const eSize=Math.max(38,Math.min(188,fw*.43));
-  ctx.save();ctx.translate(cx,top);ctx.rotate(tilt);
-  switch(filter){
-    case 'bunny':emoji('🐰',-fw*.27,-h*.32,eSize);emoji('🐰',fw*.27,-h*.32,eSize);break;
-    case 'cat':emoji('🐱',-fw*.29,-h*.22,eSize*.87);emoji('🐱',fw*.29,-h*.22,eSize*.87);break;
-    case 'dog':emoji('🐶',-fw*.34,-h*.12,eSize);emoji('🐶',fw*.34,-h*.12,eSize);break;
-    case 'crown':emoji('👑',0,-h*.19,fw*.85);break;
-    case 'pirate':emoji('🏴‍☠️',0,-h*.2,fw*.69);break;
-    case 'alien':emoji('👽',0,-h*.24,fw*.75);break;
-    case 'hearts':emoji('💕',-fw*.35,-h*.16,eSize*.75);emoji('💖',fw*.35,-h*.19,eSize*.71);break;
+ if(!face||!front||filter==='none')return;
+ const p=i=>pos(face[i]);
+ const a=p(33),b=p(263), nose=p(1),mouth=p(13),leftCheek=p(234),rightCheek=p(454);
+ const left=a.x<b.x?a:b,right=a.x<b.x?b:a;
+ const dist=Math.hypot(right.x-left.x,right.y-left.y);
+ if(!Number.isFinite(dist)||dist<20)return;
+ const mid={x:(left.x+right.x)/2,y:(left.y+right.y)/2};
+ const angle=Math.atan2(right.y-left.y,right.x-left.x);
+ const size=Math.max(35,Math.min(265,dist));
+ const origin={x:mid.x,y:mid.y};
+ ctx.save();ctx.translate(origin.x,origin.y);ctx.rotate(angle);ctx.scale(size,size);
+ // All coordinates are measured in eye-distance units, eye midpoint at (0,0).
+ function fill(c){ctx.fillStyle=c;ctx.fill()}
+ function strokePath(c,w=.035){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke()}
+ function ell(x,y,rx,ry,c,rot=0){ctx.beginPath();ctx.ellipse(x,y,rx,ry,rot,0,Math.PI*2);fill(c)}
+ function path(d,c,edge=null,w=.035){ctx.beginPath();d(ctx);ctx.closePath();fill(c);if(edge)strokePath(edge,w)}
+ function linePath(d,c,w=.035){ctx.beginPath();d(ctx);strokePath(c,w)}
+ function ears(kind){
+  for(const side of [-1,1]){
+   ctx.save();ctx.translate(side*.78,-.87);ctx.rotate(side*.14);
+   if(kind==='bunny'){
+     ell(0,-.35,.255,.61,'#fff9ff',side*.09);ell(0,-.35,.135,.46,'#f8a1cb',side*.09);
+   }else if(kind==='cat'||kind==='fox'){
+     path(c=>{c.moveTo(-.31,.10);c.lineTo(-.24,-.65);c.quadraticCurveTo(-.20,-.75,-.09,-.67);c.lineTo(.35,-.06);c.quadraticCurveTo(.06,.14,-.31,.10)},kind==='fox'?'#ef8339':'#38303f','#fff3ee',.025);
+     path(c=>{c.moveTo(-.16,-.04);c.lineTo(-.16,-.48);c.lineTo(.16,-.06)},'#f7a3b8');
+   }else if(kind==='dog'){
+     ell(side*.10,-.04,.34,.52,'#a85e35',side*.30);ell(side*.10,-.03,.20,.40,'#c78351',side*.30);
+   }else if(kind==='panda'){
+     ell(0,-.16,.35,.37,'#20232d');ell(0,-.16,.18,.20,'#e7e9ee');
+   }
+   ctx.restore();
   }
-  ctx.restore();
-  switch(filter){
-    case 'bunny':ellipse(nose.x,nose.y+12,fw*.09,fw*.07,'#ff8ccf');line({x:nose.x,y:nose.y+25},{x:nose.x,y:nose.y+44},'#fff',5);break;
-    case 'cat':ellipse(nose.x,nose.y+9,fw*.08,fw*.055,'#ff97b9');for(const side of [-1,1])for(let j=-1;j<=1;j++)line({x:nose.x+side*fw*.09,y:nose.y+23+j*4},{x:nose.x+side*fw*.40,y:nose.y+20+j*17},'#fff',4);break;
-    case 'dog':ellipse(nose.x,nose.y+18,fw*.13,fw*.10,'#202034');emoji('👅',mouth.x,mouth.y+fw*.20,fw*.27);break;
-    case 'clown':ellipse(nose.x,nose.y,fw*.15,fw*.15,'#f33e50');ellipse(mouth.x,mouth.y+fw*.12,fw*.23,fw*.06,'#e53c50');emoji('🎪',forehead.x,forehead.y-fw*.33,fw*.55,tilt);break;
-    case 'glasses':emoji('🕶️',(eyeL.x+eyeR.x)/2,(eyeL.y+eyeR.y)/2,fw*.79,tilt);break;
-    case 'moustache':emoji('〰️',mouth.x,mouth.y-fw*.08,fw*.54,tilt);break;
-    case 'pirate':emoji('🏴‍☠️',eyeL.x,eyeL.y,fw*.36);break;
-    case 'alien':ellipse(eyeL.x,eyeL.y,fw*.12,fw*.15,'#b4ff89a6');ellipse(eyeR.x,eyeR.y,fw*.12,fw*.15,'#b4ff89a6');break;
-    case 'hearts':ellipse(eyeL.x,eyeL.y,fw*.11,fw*.11,'#ffb4e660');ellipse(eyeR.x,eyeR.y,fw*.11,fw*.11,'#ffb4e660');break;
+ }
+ function noseShape(c='#ff9cae'){path(q=>{q.moveTo(-.13,.67);q.quadraticCurveTo(0,.58,.13,.67);q.quadraticCurveTo(.12,.80,0,.83);q.quadraticCurveTo(-.12,.80,-.13,.67)},c)}
+ function whiskers(c='#ffffff'){for(const z of [-1,1])for(let j=-1;j<=1;j++)linePath(q=>{q.moveTo(z*.14,.83+j*.04);q.quadraticCurveTo(z*.52,.80+j*.11,z*.92,.76+j*.17)},c,.038)}
+ function shades(){
+  for(const x of [-.51,.51]){
+   path(c=>{c.moveTo(x-.42,-.21);c.lineTo(x+.42,-.21);c.lineTo(x+.33,.30);c.quadraticCurveTo(x,.53,x-.32,.30)},'#161d38','#f4d1ff',.035);
+   linePath(c=>{c.moveTo(x-.23,-.07);c.lineTo(x+.12,-.07)},'#9be7ff',.043);
   }
+  linePath(c=>{c.moveTo(-.12,-.12);c.quadraticCurveTo(0,-.22,.12,-.12)},'#191c33',.08);
+ }
+ function crown(){path(c=>{c.moveTo(-1.05,-.82);c.lineTo(-1.06,-1.46);c.lineTo(-.56,-1.16);c.lineTo(-.24,-1.75);c.lineTo(0,-1.19);c.lineTo(.41,-1.77);c.lineTo(.59,-1.18);c.lineTo(1.06,-1.46);c.lineTo(1.05,-.82)},'#ffd64c','#e19a24',.05);ell(0,-1.05,.13,.16,'#ff4f92');ell(-.61,-1.04,.10,.13,'#38cde8');ell(.61,-1.04,.10,.13,'#38cde8');}
+ function heart(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);path(c=>{c.moveTo(0,.24);c.bezierCurveTo(-.7,-.14,-.39,-.53,0,-.22);c.bezierCurveTo(.39,-.53,.7,-.14,0,.24)},'#ff528d','#fff5fc',.04);ctx.restore()}
+ function moustache(){path(c=>{c.moveTo(0,.92);c.bezierCurveTo(-.22,.67,-.44,.74,-.56,.88);c.bezierCurveTo(-.70,1.02,-.92,.98,-.99,.83);c.bezierCurveTo(-1.03,1.16,-.52,1.33,0,1.00);c.bezierCurveTo(.52,1.33,1.03,1.16,.99,.83);c.bezierCurveTo(.92,.98,.70,1.02,.56,.88);c.bezierCurveTo(.44,.74,.22,.67,0,.92)},'#342438');}
+ switch(filter){
+  case 'bunny': ears('bunny');noseShape();whiskers('#fff7ff');ell(-.23,.99,.07,.09,'#ffffff');ell(.23,.99,.07,.09,'#ffffff');break;
+  case 'cat':ears('cat');noseShape('#f996ac');whiskers();break;
+  case 'fox':ears('fox');noseShape('#34313d');whiskers('#ffe0a6');break;
+  case 'dog':ears('dog');ell(0,.76,.19,.145,'#332b35');path(c=>{c.moveTo(-.13,1.03);c.quadraticCurveTo(0,1.42,.13,1.03)},'#fd80a7');break;
+  case 'panda':ears('panda');for(const x of [-.50,.50])ell(x,0,.37,.48,'#23252e',x*.10);ell(0,.76,.16,.12,'#181920');break;
+  case 'unicorn':ears('cat');path(c=>{c.moveTo(-.22,-.84);c.lineTo(0,-2.02);c.lineTo(.23,-.84)},'#fff0ba','#eeb1fd',.045);for(let j=0;j<4;j++)linePath(c=>{c.moveTo(-.18+j*.03,-1.01-j*.23);c.lineTo(.18-j*.03,-1.07-j*.23)},'#efaa4f',.04);heart(-.87,-.66,.35);heart(.87,-.66,.35);break;
+  case 'princess':crown();heart(-1.09,.4,.30);heart(1.09,.4,.30);break;
+  case 'pirate':path(c=>{c.moveTo(-1.20,-.93);c.quadraticCurveTo(0,-2.07,1.20,-.93);c.lineTo(.98,-.64);c.lineTo(-.98,-.64)},'#29263f','#ffffff',.04);ell(0,-1.04,.20,.18,'#ffffff');ell(-.07,-1.04,.025,.04,'#2e293c');ell(.07,-1.04,.025,.04,'#2e293c');linePath(c=>{c.moveTo(-.20,-.43);c.lineTo(-.80,.36)},'#29263f',.055);ell(-.5,0,.41,.30,'#262434');break;
+  case 'superhero':path(c=>{c.moveTo(-1.14,-.38);c.quadraticCurveTo(-.51,-.08,0,-.29);c.quadraticCurveTo(.51,-.08,1.14,-.38);c.lineTo(.97,.30);c.quadraticCurveTo(.50,.49,.15,.23);c.lineTo(-.15,.23);c.quadraticCurveTo(-.50,.49,-.97,.30)},'#7052df','#c5efff',.045);for(const x of [-.48,.48])ell(x,.02,.27,.15,'#24223f');break;
+  case 'robot':path(c=>{c.moveTo(-1.12,-.86);c.lineTo(1.12,-.86);c.lineTo(1.14,.43);c.lineTo(-1.14,.43)},'#9ee8fa','#364c69',.06);for(const x of [-.50,.5])ell(x,-.04,.29,.21,'#1d4166');linePath(c=>{c.moveTo(0,-.87);c.lineTo(0,-1.28)},'#d3ffff',.07);ell(0,-1.32,.15,.15,'#ff6baf');break;
+  case 'clown':ell(0,.69,.25,.25,'#ff365f');for(const x of [-.76,.76]){ell(x,.86,.29,.18,'#ff9ac8aa');}path(c=>{c.moveTo(-.62,1.12);c.quadraticCurveTo(0,1.55,.62,1.12);c.quadraticCurveTo(0,1.67,-.62,1.12)},'#f94e7a');heart(-.9,-.83,.33);heart(.9,-.83,.33);break;
+  case 'glasses':shades();break;
+  case 'heart':for(let j=0;j<5;j++){const x=Math.sin(j*2.5)*1.1,y=-1.1-(j%3)*.27;heart(x,y,.26+(j%2)*.12)}heart(-1.15,.65,.25);heart(1.15,.65,.25);break;
+  case 'moustache':moustache();break;
+  case 'alien':ell(-.51,-.02,.36,.45,'#69efb8aa',-.12);ell(.51,-.02,.36,.45,'#69efb8aa',.12);for(const x of [-.51,.51])ell(x,-.04,.22,.29,'#131a36');linePath(c=>{c.moveTo(-.37,1.04);c.quadraticCurveTo(0,1.30,.37,1.04)},'#55ffce',.08);break;
+ }
+ ctx.restore();
 }
+
 function loop(time){if(!stream){renderRunning=false;return}if(video.readyState<2){requestAnimationFrame(loop);return}const vw=video.videoWidth,vh=video.videoHeight;layout.scale=Math.max(W/vw,H/vh);layout.dx=(W-vw*layout.scale)/2;layout.dy=(H-vh*layout.scale)/2;ctx.save();if(front){ctx.translate(W,0);ctx.scale(-1,1)}ctx.drawImage(video,layout.dx,layout.dy,vw*layout.scale,vh*layout.scale);ctx.restore();if(landmarker&&time-lastDetect>80){try{face=landmarker.detectForVideo(video,performance.now()).faceLandmarks[0]||null}catch(e){console.warn('Face tracking:',e)}lastDetect=time}drawScene(time);drawFace();requestAnimationFrame(loop)}
 document.getElementById('photo').onclick=async()=>{if(!stream){toast('Tap Start Camera first!');return}const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob){toast('Could not make photo');return}const file=new File([blob],'GiggleCam-'+Date.now()+'.png',{type:'image/png'});if(navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:'My GiggleCam photo'});return}catch(e){if(e.name==='AbortError')return}}const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=file.name;a.click();toast('Photo ready! If it opens, hold the image and choose Save to Photos.');setTimeout(()=>URL.revokeObjectURL(u),30000)};
 </script></body></html>
